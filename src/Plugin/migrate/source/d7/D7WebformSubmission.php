@@ -10,7 +10,9 @@ use Drupal\migrate_drupal\Plugin\migrate\source\DrupalSqlBase;
  *
  * @MigrateSource(
  *   id = "d7_webform_submission",
- *   source_module = "webform"
+ *   core = {7},
+ *   source_module = "webform",
+ *   destination_module = "webform"
  * )
  */
 class D7WebformSubmission extends DrupalSqlBase {
@@ -21,23 +23,23 @@ class D7WebformSubmission extends DrupalSqlBase {
   public function query() {
     $query = $this->select('webform_submissions', 'wfs');
 
-    $query->fields('wfs', array(
+    $query->fields('wfs', [
       'nid',
       'sid',
       'uid',
       'submitted',
       'remote_addr',
       'is_draft',
-    ));
+    ]);
 
     return $query;
   }
 
-    /**
+  /**
    * {@inheritdoc}
    */
   public function fields() {
-    $fields = array(
+    $fields = [
       'nid' => $this->t('Webform node Id'),
       'sid' => $this->t('Webform submission Id'),
       'uid' => $this->t('User Id of submitter'),
@@ -47,7 +49,7 @@ class D7WebformSubmission extends DrupalSqlBase {
       'webform_id' => $this->t('Id to be used for Webform'),
       'webform_data' => $this->t('Webform submitted data'),
       'webform_uri' => $this->t('Submission uri'),
-    );
+    ];
     return $fields;
   }
 
@@ -74,32 +76,35 @@ class D7WebformSubmission extends DrupalSqlBase {
   }
 
   /**
-   * Build submitted data from webform submitted data table
+   * Build submitted data from webform submitted data table.
    */
   private function buildSubmittedData($sid) {
     $query = $this->select('webform_submitted_data', 'wfsd');
     $query->innerJoin('webform_component', 'wc', 'wc.nid=wfsd.nid AND wc.cid=wfsd.cid');
 
-    $query->fields('wfsd', array(
-      'no',
-      'data',
-    ))
-    ->fields('wc', array(
-      'form_key',
-      'extra',
-    ));
+    $query
+     ->fields('wfsd', [
+        'no',
+        'data',
+      ])
+      ->fields('wc', [
+        'form_key',
+        'extra',
+      ]);
     $wf_submissions = $query->condition('sid', $sid)->execute();
 
-    $submitted_data = array();
+    $submitted_data = [];
     foreach ($wf_submissions as $wf_submission) {
       $extra = unserialize($wf_submission['extra']);
-      if (!empty($extra['multiple'])) {
+      if (!empty($extra['multiple']) && !empty($wf_submission['data'])) {
         $item[$wf_submission['no']] = $wf_submission['data'];
       }
       else {
         $item = $wf_submission['data'];
       }
-      $submitted_data[$wf_submission['form_key']] = $item;
+      if (!empty($item)) {
+        $submitted_data[$wf_submission['form_key']] = $item;
+      }
     }
     return $submitted_data;
   }
